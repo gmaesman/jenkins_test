@@ -1,32 +1,64 @@
 pipeline {
-  // This pipeline requires the following plugins:
-  // * Git: https://plugins.jenkins.io/git/
-  // * Workflow Aggregator: https://plugins.jenkins.io/workflow-aggregator/
-  // * JUnit: https://plugins.jenkins.io/junit/
-  agent 'any'
-  stages {
-    stage('Checkout') {
+  agent { label 'linux'}
+  environment {
+    def dockerHome = tool 'myDocker'
+    PATH = "${dockerHome}/bin:${env.PATH}"
+  }
+  options {
+    skipDefaultCheckout(true)
+  }
+  stages{
+    stage('clean workspace') {
       steps {
-        script {
-            checkout([$class: 'GitSCM', branches: [[name: '*/master']], userRemoteConfigs: [[url: 'https://github.com/OctopusSamples/RandomQuotes-Java.git']]])
+        cleanWs()
+      }
+    }
+    stage('Initialize') {
+      steps {
+        echo "test"
+      }
+    }
+    stage('checkout') {
+      steps {
+        checkout scm
+      }
+    }
+    stage('tfsec') {
+      failFast true
+      steps {
+        echo "=========== Execute tfsec ================="
+        sh 'chmod 755 ./tfsecw.sh'
+        sh './tfsecw.sh'
+      }
+
+      post {
+        always { 
+          echo "========= Check tfsec test results ========="
+          junit allowEmptyResults: true, testResults: 'tfsec_results.xml', skipPublishingChecks: true
+        }
+        success {
+          echo "Tfsec passed" 
+        }
+        unstable {
+          error "TfSec Unstable"
+        }
+        failure {
+          error "Tfsec failed"
         }
       }
     }
-    stage('Test') {
-      steps {
-        sh(script: './mvnw --batch-mode -Dmaven.test.failure.ignore=true test')
-
-      }
-    }
-    stage('Package') {
-      steps {
-        sh(script: './mvnw --batch-mode package -DskipTests')
-      }
-    }
+    // stage('terraform') {
+    //   failFast true
+    //   steps {
+    //     sh 'ls .'
+    //     sh 'chmod 755 ./terraformw'
+    //     sh './terraformw apply -auto-approve -no-color'
+    //   }
+    // }
   }
   post {
     always {
-      junit(testResults: 'target/surefire-reports/*.xml', allowEmptyResults : true)
+      cleanWs()
     }
   }
 }
