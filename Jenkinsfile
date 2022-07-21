@@ -1,11 +1,6 @@
 pipeline {
   agent { label 'linux'}
-/*
-  environment {
-    def dockerHome = tool 'myDocker'
-    PATH = "${dockerHome}/bin:${env.PATH}"
-  }
-  */
+
   options {
     skipDefaultCheckout(true)
   }
